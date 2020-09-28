@@ -1,4 +1,5 @@
 import os
+import json
 import shopify
 import logging
 from flask import Flask, redirect, request, render_template, abort
@@ -61,8 +62,13 @@ def app_launched():
             access_token = f.read()
 
     if access_token:
-        #return render_template('welcome.html', shop=shop)
-        logging.info("App was already authenticated")
+        try:
+            session = shopify.Session(SHOP_URL, API_VERSION, token=access_token)
+            shopify.ShopifyResource.activate_session(session)
+            # you could do api calls here
+            return render_template('welcome.html', shop=shop)
+        except:
+            logging.warning("invalid access token, re-authenticating")
 
     try:
         session = shopify.Session(SHOP_URL, API_VERSION)
@@ -101,12 +107,10 @@ def app_installed():
     return redirect(POST_INSTALL_REDIRECT_URL, code=302)
 
 
-@app.route('/shopify_uninstall', methods=['GET'])
+@app.route('/shopify_uninstall', methods=['POST'])
 def app_uninstalled():
-    params = request.args
-    if not shopify.Session.validate_params(params):
-        logging.error("Invalid params received")
-        abort(400)
+    data = json.loads(request.data)
+    logging.warning("Received POST data for shop: %s", str(data))
 
     with open('ACCESS_TOKEN.txt', 'w') as f:
         f.write('')
